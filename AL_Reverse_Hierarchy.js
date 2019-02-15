@@ -1,4 +1,4 @@
-/*Version du 30/01/2019
+/*Version du 15/02/2019
  Alexandre Cormier*/
 
  /* Change le peg choisi par les transform gates de la scene ou du groupe séléctioné comutation entre 0 et 1*/
@@ -6,9 +6,9 @@
 /* le script cherche les nodes en question dans le groupe parent du node selectionné et dans tout les sous groupes*/
 
 
-function Reverse_hierarchy(){
+function AL_Reverse_Hierarchy(){
 
-	MessageLog.trace( "---Reverse_hierarchy---");
+	MessageLog.trace( "---AL_Reverse_hierarchy---");
 
 
 	
@@ -37,22 +37,24 @@ function Reverse_hierarchy(){
 	var peg_regex = /\bUp_|\bDown_|g/;
 	var handles_regex = /REVERSE_HIERARCHY/g
 
+	var START_ORDER  = ""
+
+
 
 
 	/**************************** E X E C U T I O N ***********************/
 
 
 
-	MessageLog.trace( "-------Reverse_hierarchy-------");
+	MessageLog.trace( "-------AL_Reverse_hierarchy-------");
 	
-	scene.beginUndoRedoAccum("Reverse_hierarchy"); 
+	scene.beginUndoRedoAccum("AL_Reverse_Hierarchy"); 
 
 	fetch_nodes();
 	treat_nodes();
 	Build_Bones();
-
-	Mimic_Up_angles_to_Down_angles()
-	//Replace_Down_femur();
+ 	Update_angles()
+	//Replace_Down_femur()
 
 	
 	
@@ -152,6 +154,12 @@ function Reverse_hierarchy(){
 				
 	}
 
+	function detect_hierarchy(){
+
+
+
+	}
+
 	function treat_nodes(){
 		
 		var START_STATE = 1;
@@ -169,7 +177,9 @@ function Reverse_hierarchy(){
 						//Switch on off
 						if(START_STATE == 0){
 							START_STATE = 1
+							START_ORDER = "UP"
 						}else{
+							START_ORDER = "DOWN"
 							START_STATE = 0
 						}
 						
@@ -191,6 +201,47 @@ function Reverse_hierarchy(){
 
 		}
 
+		MessageLog.trace("START_STATE "+START_STATE)
+
+	}
+
+	function Update_angles(){
+
+		switch(START_ORDER){
+
+			case "UP" : 
+				MessageLog.trace("Angles Up tp Down")
+				Mimic_Up_angles_to_Down_angles()
+			break;
+			case "DOWN" :
+				MessageLog.trace("Angles Down to Up")
+				Mimic_Down_angles_to_Up_angles()
+			break;
+
+
+		}
+
+
+
+	}
+	function Update_positions(){
+
+		switch(START_ORDER){
+
+			case "UP" : 
+				MessageLog.trace("Position Up tp Down")
+				Mimic_Up_angles_to_Down_angles()
+			break;
+			case "DOWN" :
+				MessageLog.trace("Position Down to Up")
+				Mimic_Down_angles_to_Up_angles()
+			break;
+
+
+		}
+
+
+
 	}
 
 
@@ -208,8 +259,6 @@ function Reverse_hierarchy(){
 			column.setEntry(TGcolumn,0,cf,g);
 			column.setKeyFrame(TGcolumn,cf);
 
-			MessageLog.trace(TGcolumn);
-
 		}else{
 
 
@@ -220,8 +269,6 @@ function Reverse_hierarchy(){
 			column.setEntry(TGcolumn,0,cf,g);
 			column.setKeyFrame(TGcolumn,cf);
 			node.linkAttr(n,"targetGate",columnName );
-
-			MessageLog.trace(TGcolumn);
 		}
 
 	}
@@ -377,7 +424,7 @@ function Reverse_hierarchy(){
 
 			var angle = parseInt(node.getTextAttr(this.rootpeg,cf,"rotation.anglez"));
 
-			MessageLog.trace("--------"+this.rootpeg+" getRoation result :"+angle)
+			//MessageLog.trace("--------"+this.rootpeg+" getRoation result :"+angle)
 
 			return angle 
 
@@ -394,82 +441,121 @@ function Reverse_hierarchy(){
 
 		this.setPosition = function(x,y){
 
+			MessageLog.trace(this.rootpeg+"----setPosition x: "+x+" y: "+y)
+
 			node.setTextAttr(this.rootpeg,"position.x", cf,x);
 			node.setTextAttr(this.rootpeg,"position.y", cf,y);
-			MessageLog.trace("set position to "+this.rootpeg+": ( X :"+x+" Y : "+y+" )")
+
+
+			add_Key_to_attribute(this.rootpeg,"position.x",x,cf);
+			add_Key_to_attribute(this.rootpeg,"position.y",y,cf);
 
 		}
 
+
 		this.getLength = function(){
 
-			MessageLog.trace("length of the bones :"+this.length)
+			//MessageLog.trace("length of the bones :"+this.length)
 			return this.length;
 
 		}
 
 
-		MessageLog.trace("\n ******* NEW Bone created ");
-		MessageLog.trace("\n ******* root : "+this.rootpeg); 
-		MessageLog.trace("\n ******* end  : "+this.endpeg);
+		//MessageLog.trace("\n ******* NEW Bone created ");
+		//MessageLog.trace("\n ******* root : "+this.rootpeg); 
+		//MessageLog.trace("\n ******* end  : "+this.endpeg);
 
 	}
+
+	function add_Key_to_attribute(n,attribute,value,frame){
+
+		var currentColumn = node.linkedColumn(n,attribute);
+
+		if(currentColumn  != ""){
+
+			column.setEntry(currentColumn,0,frame,value);
+			column.setKeyFrame(currentColumn,frame);
+
+		}else{
+
+
+			//MessageLog.trace("adding new column")
+			var columnName = n+"_"+attribute;
+
+			currentColumn  = column.add(columnName , "BEZIER", "BOTTOM");
+			column.setEntry(currentColumn,0,frame,value);
+			column.setKeyFrame(currentColumn,frame);
+			node.linkAttr(n,attribute,columnName );
+
+			MessageLog.trace(currentColumn);
+		}
+
+	}
+
+
 
 
 	function Mimic_Up_angles_to_Down_angles(){
 
 		MessageLog.trace("Mimic_Up_angles_to_Down_angles")
 
-
-
-		var FU =  UP_BONES["FEMUR"].getRotation()
-		var TU =  UP_BONES["TIBIA"].getRotation()
-		var CU =  UP_BONES["CARPE"].getRotation()
-		var PU =  UP_BONES["PHALANGES"].getRotation()
-
-
-	 	var PD = -CU
-		var CD=  -TU
-		var TD = -FU
-		var FD = FU+TU+CU+PU
-
-
-		MessageLog.trace("fd "+FD)
-		MessageLog.trace("td "+TD)
-		MessageLog.trace("cd "+CD)
-		MessageLog.trace("pd "+PD)
-
-		DOWN_BONES["FEMUR"].setRotation(FD)
-		DOWN_BONES["TIBIA"].setRotation(TD)
-		DOWN_BONES["CARPE"].setRotation(CD)
-		DOWN_BONES["PHALANGES"].setRotation(PD);
-
-		/*replace root position after rotation*/
-
-		var A = DOWN_BONES["FEMUR"].getLength()
-		var B = DOWN_BONES["TIBIA"].getLength()
-		var C = DOWN_BONES["CARPE"].getLength()
-		var D = 0.3//DOWN_BONES["PHALANGES"].getLength();
+		var F1 =  UP_BONES["FEMUR"].getRotation()
+		var T1 =  UP_BONES["TIBIA"].getRotation()
+		var C1 =  UP_BONES["CARPE"].getRotation()
+		var P1 =  UP_BONES["PHALANGES"].getRotation()
 
 
 
-
-		/*var TX =-(Math.sin(radian(FU))*A+Math.sin(radian(FU+TU))*B+Math.sin(radian(FU+TU+CU))*C+Math.sin(radian(FU+TU+CU+PU))*D)
-		var TY  =Math.cos(radian(FU))*A+Math.cos(radian(FU+TU))*B+Math.cos(radian(FU+TU+CU))*C+Math.cos(radian(FU+TU+CU+PU))*D-(A+B+C+D)*/
-
-		var TX =-(Math.sin(radian(PU))*D+Math.sin(radian(PU+CU))*C+Math.sin(radian(PU+CU+TU))*B+Math.sin(radian(PU+CU+TU+FU))*A)
-		var TY  =Math.cos(radian(PU))*D+Math.cos(radian(PU+CU))*C+Math.cos(radian(PU+CU+TU))*B+Math.cos(radian(PU+CU+TU+FU))*A-(D+C+B+A)
-		MessageLog.trace(TX);
-		MessageLog.trace(TY);
+	 	var P2 = -C1
+		var C2=  -T1
+		var T2 = -F1
+		var F2 = F1+T1+C1+P1
 
 
-		DOWN_BONES["FEMUR"].setPosition(TX,TY)
+		MessageLog.trace("fd "+F2)
+		MessageLog.trace("td "+T2)
+		MessageLog.trace("cd "+C2)
+		MessageLog.trace("pd "+P2)
+
+		DOWN_BONES["FEMUR"].setRotation(F2)
+		DOWN_BONES["TIBIA"].setRotation(T2)
+		DOWN_BONES["CARPE"].setRotation(C2)
+		DOWN_BONES["PHALANGES"].setRotation(P2);
+		
+
+	}
+
+	function Mimic_Down_angles_to_Up_angles(){
+
+		MessageLog.trace("Mimic_Down_angles_to_Up_angles")
+
+		var F1 =  DOWN_BONES["FEMUR"].getRotation()
+		var T1 =  DOWN_BONES["TIBIA"].getRotation()
+		var C1 =  DOWN_BONES["CARPE"].getRotation()
+		var P1 =  DOWN_BONES["PHALANGES"].getRotation()
+
+
+		var P2 = F1+T1+C1+P1
+		var C2 = -P1
+		var T2=  -C1
+	 	var F2 = -T1
+
+		MessageLog.trace("fd "+F2)
+		MessageLog.trace("td "+T2)
+		MessageLog.trace("cd "+C2)
+		MessageLog.trace("pd "+P2)
+
+		UP_BONES["FEMUR"].setRotation(F2)
+		UP_BONES["TIBIA"].setRotation(T2)
+		UP_BONES["CARPE"].setRotation(C2)
+		UP_BONES["PHALANGES"].setRotation(P2);
 		
 
 	}
 
 	function Replace_Down_femur(){
 
-			MessageLog.trace("Mimic_Up_angles_to_Down_angles")
+			MessageLog.trace("***************************  Replace_Down_femur")
 
 
 
@@ -481,28 +567,25 @@ function Reverse_hierarchy(){
 			var A = UP_BONES["FEMUR"].getLength()
 			var B = UP_BONES["TIBIA"].getLength()
 			var C = UP_BONES["CARPE"].getLength()
-			var D = 0.3//DOWN_BONES["PHALANGES"].getLength();
+			var D = 0//DOWN_BONES["PHALANGES"].getLength();
 
 
 
-			function radian(a){
-					return a*Math.PI/180
-			}
 
 			/*var TX =-(Math.sin(radian(FU))*A+Math.sin(radian(FU+TU))*B+Math.sin(radian(FU+TU+CU))*C+Math.sin(radian(FU+TU+CU+PU))*D)
 			var TY  =Math.cos(radian(FU))*A+Math.cos(radian(FU+TU))*B+Math.cos(radian(FU+TU+CU))*C+Math.cos(radian(FU+TU+CU+PU))*D-(A+B+C+D)*/
 
-			var TX =(Math.sin(radian(PU))*D+Math.sin(radian(PU+CU))*C+Math.sin(radian(PU+CU+TU))*B+Math.sin(radian(PU+CU+TU+FU))*A)
-			var TY  =-(Math.cos(radian(PU))*D+Math.cos(radian(PU+CU))*C+Math.cos(radian(PU+CU+TU))*B+Math.cos(radian(PU+CU+TU+FU))*A-(D+C+B+A))
+			var TX =-(Math.sin(radian(PU))*D+Math.sin(radian(PU+CU))*C+Math.sin(radian(PU+CU+TU))*B+Math.sin(radian(PU+CU+TU+FU))*A)
+			var TY =Math.cos(radian(PU))*D+Math.cos(radian(PU+CU))*C+Math.cos(radian(PU+CU+TU))*B+Math.cos(radian(PU+CU+TU+FU))*A-(A+B+C+D)
+			MessageLog.trace("TX = "+TX);
+			MessageLog.trace("TY = "+TY);
 
-			MessageLog.trace(TX);
-			MessageLog.trace(TY);
 
-
-			DOWN_BONES["FEMUR"].setPosition(TX,TY)
+			DOWN_BONES["FEMUR"].setPosition(TX*0.1,TY*0.1)
+			//DOWN_BONES["FEMUR"].setPosition(0,0)
 			
 
-		}
+	}
 
 
 	function oldMimic_Rotation(){
