@@ -53,10 +53,8 @@ function AL_Reverse_Hierarchy(){
 	fetch_nodes();
 	treat_nodes();
 	Build_Bones();
- 	Update_angles()
-	//Replace_Down_femur()
-
-	
+ 	Update_angles();
+ 	//Update_positions()
 	
 	scene.endUndoRedoAccum();  
 	
@@ -154,12 +152,6 @@ function AL_Reverse_Hierarchy(){
 				
 	}
 
-	function detect_hierarchy(){
-
-
-
-	}
-
 	function treat_nodes(){
 		
 		var START_STATE = 1;
@@ -212,12 +204,16 @@ function AL_Reverse_Hierarchy(){
 			case "UP" : 
 				MessageLog.trace("Angles Up tp Down")
 				Mimic_Up_angles_to_Down_angles()
+				
 			break;
 			case "DOWN" :
 				MessageLog.trace("Angles Down to Up")
 				Mimic_Down_angles_to_Up_angles()
-			break;
 
+			break;
+			default : 
+
+			break;
 
 		}
 
@@ -230,11 +226,14 @@ function AL_Reverse_Hierarchy(){
 
 			case "UP" : 
 				MessageLog.trace("Position Up tp Down")
-				Mimic_Up_angles_to_Down_angles()
+				Replace_Up_to_Down()
 			break;
 			case "DOWN" :
 				MessageLog.trace("Position Down to Up")
-				Mimic_Down_angles_to_Up_angles()
+				Replace_Down_to_Up()
+			break;
+			default : 
+
 			break;
 
 
@@ -352,12 +351,15 @@ function AL_Reverse_Hierarchy(){
 
 		UP_BONES["FEMUR"] = new Bone(UP_PEG["FEMUR"],UP_PEG["TIBIA"],false);
 		UP_BONES["FEMUR"].calculate_Length()
+		UP_BONES["FEMUR"].calculate_Orientation()
 
 		UP_BONES["TIBIA"] = new Bone(UP_PEG["TIBIA"],UP_PEG["CARPE"],false);
 		UP_BONES["TIBIA"].calculate_Length()
+		UP_BONES["TIBIA"].calculate_Orientation()
 
 		UP_BONES["CARPE"] = new Bone(UP_PEG["CARPE"],UP_PEG["PHALANGES"],false);
 		UP_BONES["CARPE"].calculate_Length()
+		UP_BONES["CARPE"].calculate_Orientation()
 
 		UP_BONES["PHALANGES"] = new Bone(UP_PEG["PHALANGES"],"",true);
 
@@ -366,12 +368,15 @@ function AL_Reverse_Hierarchy(){
 
 		DOWN_BONES["FEMUR"] = new Bone(DOWN_PEG["FEMUR"],DOWN_PEG["TIBIA"],false);
 		DOWN_BONES["FEMUR"].calculate_Length()
+		DOWN_BONES["FEMUR"].calculate_Orientation()
 
 		DOWN_BONES["TIBIA"] = new Bone(DOWN_PEG["TIBIA"],DOWN_PEG["CARPE"],false);
 		DOWN_BONES["TIBIA"].calculate_Length()
+		DOWN_BONES["TIBIA"].calculate_Orientation()
 
 		DOWN_BONES["CARPE"] = new Bone(DOWN_PEG["CARPE"],DOWN_PEG["PHALANGES"],false);
 		DOWN_BONES["CARPE"].calculate_Length()
+		DOWN_BONES["CARPE"].calculate_Orientation()
 
 		DOWN_BONES["PHALANGES"] = new Bone(DOWN_PEG["PHALANGES"],"",true);
 
@@ -385,6 +390,7 @@ function AL_Reverse_Hierarchy(){
 		this.rootpeg = rp;
 		this.rootpoint = node.getPivot(rp,cf);
 		this.length = 0;
+		this.orientation = 0;
 
 		if(isRoot==false){
 
@@ -459,7 +465,26 @@ function AL_Reverse_Hierarchy(){
 			return this.length;
 
 		}
+		this.calculate_Orientation = function(){
 
+			var Dx = - this.endpoint.x-this.rootpoint.x;
+			var Dy = this.endpoint.y-this.rootpoint.y;
+			var orientation= Math.atan2(Dy,Dx)*180 / Math.PI;;
+			this.orientation = orientation
+
+			MessageLog.trace("ORIENTATION :"+orientation)
+
+			return orientation
+
+		}
+
+		this.getOrientation = function(){
+
+			//MessageLog.trace("length of the bones :"+this.length)
+			
+			return this.orientation;
+
+		}
 
 		//MessageLog.trace("\n ******* NEW Bone created ");
 		//MessageLog.trace("\n ******* root : "+this.rootpeg); 
@@ -553,25 +578,36 @@ function AL_Reverse_Hierarchy(){
 
 	}
 
-	function Replace_Down_femur(){
+	function Replace_Up_to_Down(){
 
 			MessageLog.trace("***************************  Replace_Down_femur")
 
 
 
-			var FU =  UP_BONES["FEMUR"].getRotation()
-			var TU =  UP_BONES["TIBIA"].getRotation()
-			var CU =  UP_BONES["CARPE"].getRotation()
-			var PU =  UP_BONES["PHALANGES"].getRotation()
 
-			var A = UP_BONES["FEMUR"].getLength()
-			var B = UP_BONES["TIBIA"].getLength()
-			var C = UP_BONES["CARPE"].getLength()
+			/* Fixed value from bones*/
+			var A = DOWN_BONES["FEMUR"].getLength()
+			var B = DOWN_BONES["TIBIA"].getLength()
+			var C = DOWN_BONES["CARPE"].getLength()
 			var D = 0//DOWN_BONES["PHALANGES"].getLength();
 
+			var OF =  DOWN_BONES["FEMUR"].getOrientation()
+			var OT =  DOWN_BONES["TIBIA"].getOrientation()
+			var OC =  DOWN_BONES["CARPE"].getOrientation()
+			var OP =  DOWN_BONES["PHALANGES"].getOrientation()
 
+			/*Rotation value*/
+			var FUR =  UP_BONES["FEMUR"].getRotation()
+			var TUR =  UP_BONES["TIBIA"].getRotation()
+			var CUR =  UP_BONES["CARPE"].getRotation()
+			var PUR =  UP_BONES["PHALANGES"].getRotation()
 
-
+			/*Absolute angles*/
+			var FU =  FUR+OF;
+			var TU =  TUR+OT
+			var CU =  CUR+OC
+			var PU =  PUR+OP
+		
 			/*var TX =-(Math.sin(radian(FU))*A+Math.sin(radian(FU+TU))*B+Math.sin(radian(FU+TU+CU))*C+Math.sin(radian(FU+TU+CU+PU))*D)
 			var TY  =Math.cos(radian(FU))*A+Math.cos(radian(FU+TU))*B+Math.cos(radian(FU+TU+CU))*C+Math.cos(radian(FU+TU+CU+PU))*D-(A+B+C+D)*/
 
@@ -581,12 +617,60 @@ function AL_Reverse_Hierarchy(){
 			MessageLog.trace("TY = "+TY);
 
 
-			DOWN_BONES["FEMUR"].setPosition(TX*0.1,TY*0.1)
-			//DOWN_BONES["FEMUR"].setPosition(0,0)
+			DOWN_BONES["FEMUR"].setPosition(TX,TY)
+			DOWN_BONES["FEMUR"].setPosition(0,0)
 			
 
 	}
+	function Replace_Down_to_Up(){
 
+			MessageLog.trace("***************************  Replace_Down_femur")
+
+			/* Fixed value from bones*/
+			var A = DOWN_BONES["FEMUR"].getLength()
+			var B = DOWN_BONES["TIBIA"].getLength()
+			var C = DOWN_BONES["CARPE"].getLength()
+			var D = 0//DOWN_BONES["PHALANGES"].getLength();
+
+			var OF =  DOWN_BONES["FEMUR"].getOrientation()
+			var OT =  DOWN_BONES["TIBIA"].getOrientation()
+			var OC =  DOWN_BONES["CARPE"].getOrientation()
+			var OP =  DOWN_BONES["PHALANGES"].getOrientation()
+
+			/*Rotation value*/
+			var FUR =  DOWN_BONES["FEMUR"].getRotation()
+			var TUR =  DOWN_BONES["TIBIA"].getRotation()
+			var CUR =  DOWN_BONES["CARPE"].getRotation()
+			var PUR =  DOWN_BONES["PHALANGES"].getRotation()
+
+			/*Absolute angles*/
+			var FU =  FUR+OF;
+			var TU =  TUR+OT
+			var CU =  CUR+OC
+			var PU =  PUR+OP
+
+
+
+
+			var TX =-(Math.sin(radian(FU))*A+Math.sin(radian(FU+TU))*B+Math.sin(radian(FU+TU+CU))*C+Math.sin(radian(FU+TU+CU+PU))*D)
+			var TY  =Math.cos(radian(FU))*A+Math.cos(radian(FU+TU))*B+Math.cos(radian(FU+TU+CU))*C+Math.cos(radian(FU+TU+CU+PU))*D-(A+B+C+D)
+
+
+
+			//var TX =-(Math.sin(radian(PU))*D+Math.sin(radian(PU+CU))*C+Math.sin(radian(PU+CU+TU))*B+Math.sin(radian(PU+CU+TU+FU))*A)
+			//var TY =Math.cos(radian(PU))*D+Math.cos(radian(PU+CU))*C+Math.cos(radian(PU+CU+TU))*B+Math.cos(radian(PU+CU+TU+FU))*A-(A+B+C+D)
+
+			//var TX =-(Math.sin(radian(PU))*D+Math.sin(radian(PU+CU))*C+Math.sin(radian(PU+CU+TU))*B+Math.sin(radian(PU+CU+TU+FU))*A)
+			//var TY =Math.cos(radian(PU))*D+Math.cos(radian(PU+CU))*C+Math.cos(radian(PU+CU+TU))*B+Math.cos(radian(PU+CU+TU+FU))*A-(A+B+C+D)
+			MessageLog.trace("TX = "+TX);
+			MessageLog.trace("TY = "+TY);
+
+
+			UP_BONES["PHALANGES"].setPosition(TX,TY)
+			UP_BONES["PHALANGES"].setPosition(0,0)
+			
+
+	}
 
 	function oldMimic_Rotation(){
 
